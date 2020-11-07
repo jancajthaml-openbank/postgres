@@ -64,6 +64,7 @@ jobs:
           paths:
             - /mnt/ramdisk/.git
             - /mnt/ramdisk/Dockerfile
+            - /mnt/ramdisk/init.sql
 
   # -------------------------------------------------------------------------- #
 
