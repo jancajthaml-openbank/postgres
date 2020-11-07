@@ -21,6 +21,9 @@ workflows:
             tags:
               only: /^v[0-9]+(\.[0-9]+)*$/
       - package-docker:
+          requires:
+            - checkout
+            - versions
           filters:
             branches:
               ignore: /.*/
