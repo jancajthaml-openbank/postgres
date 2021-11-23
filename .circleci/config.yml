@@ -131,17 +131,27 @@ jobs:
             export META=$(cat /home/circleci/project/META)
             export ARCH=arm64
 
-            docker build -t docker.io/openbank/postgres:${ARCH}-${VERSION}.${META} -f ./packaging/docker/${ARCH}/Dockerfile .
-            docker build -t docker.pkg.github.com/jancajthaml-openbank/postgres/postgres:${ARCH}-${VERSION} -f ./packaging/docker/${ARCH}/Dockerfile .
+            docker build \
+              -t docker.io/openbank/postgres:${ARCH}-${VERSION}.${META} \
+              -f ./packaging/docker/${ARCH}/Dockerfile .
+            
+            docker build \
+              -t docker.pkg.github.com/jancajthaml-openbank/postgres/postgres:${ARCH}-${VERSION} \
+              -f ./packaging/docker/${ARCH}/Dockerfile .
       - run:
           name: Publish to docker.io
           command: |
             export VERSION=$(cat /home/circleci/project/VERSION)
             export META=$(cat /home/circleci/project/META)
 
-            echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USER} --password-stdin
+            echo ${DOCKER_PASSWORD} | docker login docker.io -u ${DOCKER_USER} --password-stdin
+
+            echo docker push \
+              docker.io/openbank/postgres:${ARCH}-${VERSION}.${META}
+
             docker push \
               docker.io/openbank/postgres:${ARCH}-${VERSION}.${META}
+
             rm -f /root/.docker/config.json
       - run:
           name: Publish to docker.pkg.github.com
@@ -149,9 +159,11 @@ jobs:
             export VERSION=$(cat /home/circleci/project/VERSION)
             export ARCH=arm64
 
-            echo ${GITHUB_RELEASE_TOKEN} | docker login docker.pkg.github.com -u jancajthaml --password-stdin
+            echo ${GITHUB_RELEASE_TOKEN} | docker login docker.pkg.github.com -u ${DOCKER_USER} --password-stdin
+
             docker push \
               docker.pkg.github.com/jancajthaml-openbank/postgres/postgres:${ARCH}-${VERSION}
+
             rm -f /root/.docker/config.json
 
   # -------------------------------------------------------------------------- #
