@@ -143,26 +143,22 @@ jobs:
           command: |
             export VERSION=$(cat /home/circleci/project/VERSION)
             export META=$(cat /home/circleci/project/META)
-            export ARCH=amd64
+            export ARCH=arm64
 
-            echo ${DOCKER_PASSWORD} | docker login docker.io -u ${DOCKER_USER} --password-stdin
+            docker login docker.io -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}
 
             docker push \
               docker.io/openbank/postgres:${ARCH}-${VERSION}.${META}
-
-            rm -f /root/.docker/config.json
       - run:
           name: Publish to docker.pkg.github.com
           command: |
             export VERSION=$(cat /home/circleci/project/VERSION)
             export ARCH=arm64
 
-            echo ${GITHUB_RELEASE_TOKEN} | docker login docker.pkg.github.com -u ${DOCKER_USER} --password-stdin
+            docker login docker.pkg.github.com -u ${DOCKER_USER} -p ${GITHUB_RELEASE_TOKEN}
 
             docker push \
               docker.pkg.github.com/jancajthaml-openbank/postgres/postgres:${ARCH}-${VERSION}
-
-            rm -f /root/.docker/config.json
 
   # -------------------------------------------------------------------------- #
 
@@ -190,19 +186,18 @@ jobs:
             export META=$(cat /home/circleci/project/META)
             export ARCH=amd64
 
-            echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USER} --password-stdin
+            docker login docker.io -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}
             docker push \
               docker.io/openbank/postgres:${ARCH}-${VERSION}.${META}
-            rm -f /root/.docker/config.json
       - run:
           name: Publish to docker.pkg.github.com
           command: |
             export VERSION=$(cat /home/circleci/project/VERSION)
             export ARCH=amd64
 
-            echo ${GITHUB_RELEASE_TOKEN} | docker login docker.pkg.github.com -u jancajthaml --password-stdin
+            docker login docker.pkg.github.com -u ${DOCKER_USER} -p ${GITHUB_RELEASE_TOKEN}
+
             docker push \
               docker.pkg.github.com/jancajthaml-openbank/postgres/postgres:${ARCH}-${VERSION}
-            rm -f /root/.docker/config.json
 
 # ---------------------------------------------------------------------------- #
