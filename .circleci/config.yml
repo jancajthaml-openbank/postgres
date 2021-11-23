@@ -143,11 +143,9 @@ jobs:
           command: |
             export VERSION=$(cat /home/circleci/project/VERSION)
             export META=$(cat /home/circleci/project/META)
+            export ARCH=amd64
 
             echo ${DOCKER_PASSWORD} | docker login docker.io -u ${DOCKER_USER} --password-stdin
-
-            echo docker push \
-              docker.io/openbank/postgres:${ARCH}-${VERSION}.${META}
 
             docker push \
               docker.io/openbank/postgres:${ARCH}-${VERSION}.${META}
@@ -190,6 +188,7 @@ jobs:
           command: |
             export VERSION=$(cat /home/circleci/project/VERSION)
             export META=$(cat /home/circleci/project/META)
+            export ARCH=amd64
 
             echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USER} --password-stdin
             docker push \
