@@ -20,7 +20,13 @@ workflows:
               ignore: /.*/
             tags:
               only: /^v[0-9]+(\.[0-9]+)*$/
-      - package-docker:
+      - package-docker-amd64:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v[0-9]+(\.[0-9]+)*$/
+      - package-docker-arm64:
           filters:
             branches:
               ignore: /.*/
@@ -44,9 +50,17 @@ executors:
     docker:
       - image: docker.io/alpine/git
 
-  docker:
-    docker:
-      - image: docker.io/docker:18.06.0-ce-git
+  arm64-testbed:
+    machine:
+      image: ubuntu-2004:202101-01
+      docker_layer_caching: false
+      resource_class: arm.medium
+
+  amd64-testbed:
+    machine:
+      image: ubuntu-2004:202101-01
+      docker_layer_caching: false
+      resource_class: medium
 
 # ---------------------------------------------------------------------------- #
 
@@ -56,83 +70,124 @@ jobs:
 
   checkout:
     executor: git
-    working_directory: /mnt/ramdisk
+    working_directory: /home/circleci/project
     steps:
       - checkout
       - save_cache:
           key: code-{{ .Environment.CIRCLE_TAG }}-{{ .Environment.CIRCLE_PROJECT_REPONAME }}-{{ .Environment.CIRCLE_SHA1 }}
           paths:
-            - /mnt/ramdisk/.git
-            - /mnt/ramdisk/Dockerfile
-            - /mnt/ramdisk/init.sql
+            - /home/circleci/project/.git
+            - /home/circleci/project/Dockerfile
+            - /home/circleci/project/init.sql
 
   # -------------------------------------------------------------------------- #
 
   versions:
     executor: git
-    working_directory: /mnt/ramdisk
+    working_directory: /home/circleci/project
     steps:
       - checkout
       - run:
-          name: Update FULL_VERSION + SHORT_VERSION
-          command: |
-            if [ -z ${CIRCLE_TAG} ] ; then
-              tags=$(git tag --sort=-v:refname | head -1)
-              if [ -z ${tags} ] ; then
-                VERSION=v0.0.0
-              else
-                VERSION=${tags}
-              fi
-              META=$(echo -e ${CIRCLE_BRANCH} | sed 's:.*/::')
-              echo -e "${VERSION#v}" > /mnt/ramdisk/SHORT_VERSION
-              echo -e "${VERSION}-${META}" > /mnt/ramdisk/FULL_VERSION
+        name: Update VERSION + META
+        command: |
+          if [ -z ${CIRCLE_TAG} ] ; then
+            tags=$(git tag --sort=-v:refname | head -1)
+            if [ -z ${tags} ] ; then
+              VERSION=v0.0.0
             else
-              echo -e "${CIRCLE_TAG#v}" > /mnt/ramdisk/SHORT_VERSION
-              echo -e "${CIRCLE_TAG}-master" > /mnt/ramdisk/FULL_VERSION
+              VERSION=${tags}
             fi
+            META=$(echo -e ${CIRCLE_BRANCH} | sed 's:.*/::')
+            echo -e "${VERSION#v}" > /home/circleci/project/VERSION
+            echo -e "${META}" > /home/circleci/project/META
+          else
+            echo -e "${CIRCLE_TAG#v}" > /home/circleci/project/VERSION
+            echo -e "main" > /home/circleci/project/META
+          fi
       - save_cache:
           key: versions-{{ .Environment.CIRCLE_TAG }}-{{ .Environment.CIRCLE_PROJECT_REPONAME }}-{{ .Environment.CIRCLE_SHA1 }}
           paths:
-            - /mnt/ramdisk/SHORT_VERSION
-            - /mnt/ramdisk/FULL_VERSION
+            - /home/circleci/project/META
+            - /home/circleci/project/VERSION
 
   # -------------------------------------------------------------------------- #
 
-  package-docker:
-    executor: docker
-    working_directory: /mnt/ramdisk
+  package-docker-arm64:
+    executor: arm64-testbed
+    working_directory: /home/circleci/project
     steps:
       - restore_cache:
           key: code-{{ .Environment.CIRCLE_TAG }}-{{ .Environment.CIRCLE_PROJECT_REPONAME }}-{{ .Environment.CIRCLE_SHA1 }}
       - restore_cache:
           key: versions-{{ .Environment.CIRCLE_TAG }}-{{ .Environment.CIRCLE_PROJECT_REPONAME }}-{{ .Environment.CIRCLE_SHA1 }}
-      - setup_remote_docker:
-          version: 18.06.0-ce
       - run:
           name: Package for docker
           command: |
-            FULL_VERSION=$(cat /mnt/ramdisk/FULL_VERSION)
-            SHORT_VERSION=$(cat /mnt/ramdisk/SHORT_VERSION)
+            export VERSION=$(cat /mnt/ramdisk/VERSION)
+            export META=$(cat /mnt/ramdisk/META)
+            export ARCH=arm64
 
-            docker build -t docker.io/openbank/postgres:${FULL_VERSION} .
-            docker build -t docker.pkg.github.com/jancajthaml-openbank/postgres/postgres:${SHORT_VERSION} .
+            docker build -t docker.io/openbank/postgres:${ARCH}-${VERSION}.${META} .
+            docker build -t docker.pkg.github.com/jancajthaml-openbank/postgres/postgres:${ARCH}-${VERSION} .
       - run:
           name: Publish to docker.io
           command: |
-            echo ${DOCKER_PASSWORD} \
-              | docker login -u ${DOCKER_USER} --password-stdin
-            VERSION=$(cat /mnt/ramdisk/FULL_VERSION)
+            export VERSION=$(cat /mnt/ramdisk/VERSION)
+            export META=$(cat /mnt/ramdisk/META)
+
+            echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USER} --password-stdin
             docker push \
-              docker.io/openbank/postgres:${VERSION}
+              docker.io/openbank/postgres:${ARCH}-${VERSION}.${META}
             rm -f /root/.docker/config.json
       - run:
           name: Publish to docker.pkg.github.com
           command: |
-            echo ${GITHUB_RELEASE_TOKEN} \
-              | docker login docker.pkg.github.com -u jancajthaml --password-stdin
-            VERSION=$(cat /mnt/ramdisk/SHORT_VERSION)
+            export VERSION=$(cat /mnt/ramdisk/VERSION)
+            export ARCH=arm64
+
+            echo ${GITHUB_RELEASE_TOKEN} | docker login docker.pkg.github.com -u jancajthaml --password-stdin
             docker push \
-              docker.pkg.github.com/jancajthaml-openbank/postgres/postgres:${VERSION}
+              docker.pkg.github.com/jancajthaml-openbank/postgres/postgres:${ARCH}-${VERSION}
+            rm -f /root/.docker/config.json
+
+  # -------------------------------------------------------------------------- #
+
+  package-docker-amd64:
+    executor: amd64-testbed
+    working_directory: /home/circleci/project
+    steps:
+      - restore_cache:
+          key: code-{{ .Environment.CIRCLE_TAG }}-{{ .Environment.CIRCLE_PROJECT_REPONAME }}-{{ .Environment.CIRCLE_SHA1 }}
+      - restore_cache:
+          key: versions-{{ .Environment.CIRCLE_TAG }}-{{ .Environment.CIRCLE_PROJECT_REPONAME }}-{{ .Environment.CIRCLE_SHA1 }}
+      - run:
+          name: Package for docker
+          command: |
+            export VERSION=$(cat /mnt/ramdisk/VERSION)
+            export META=$(cat /mnt/ramdisk/META)
+            export ARCH=amd64
+
+            docker build -t docker.io/openbank/postgres:${ARCH}-${VERSION}.${META} .
+            docker build -t docker.pkg.github.com/jancajthaml-openbank/postgres/postgres:${ARCH}-${VERSION} .
+      - run:
+          name: Publish to docker.io
+          command: |
+            export VERSION=$(cat /mnt/ramdisk/VERSION)
+            export META=$(cat /mnt/ramdisk/META)
+
+            echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USER} --password-stdin
+            docker push \
+              docker.io/openbank/postgres:${ARCH}-${VERSION}.${META}
+            rm -f /root/.docker/config.json
+      - run:
+          name: Publish to docker.pkg.github.com
+          command: |
+            export VERSION=$(cat /mnt/ramdisk/VERSION)
+            export ARCH=amd64
+
+            echo ${GITHUB_RELEASE_TOKEN} | docker login docker.pkg.github.com -u jancajthaml --password-stdin
+            docker push \
+              docker.pkg.github.com/jancajthaml-openbank/postgres/postgres:${ARCH}-${VERSION}
             rm -f /root/.docker/config.json
 
 # ---------------------------------------------------------------------------- #
