@@ -20,13 +20,13 @@ workflows:
               ignore: /.*/
             tags:
               only: /^v[0-9]+(\.[0-9]+)*$/
-      - package-docker-amd64:
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /^v[0-9]+(\.[0-9]+)*$/
-      - package-docker-arm64:
+      - package-docker:
+          matrix:
+            parameters:
+              arch: [amd64, arm64]
+          requires:
+            - checkout
+            - versions
           filters:
             branches:
               ignore: /.*/
@@ -37,11 +37,10 @@ workflows:
     jobs:
       - checkout
       - versions
-      - package-docker-amd64:
-          requires:
-            - checkout
-            - versions
-      - package-docker-arm64:
+      - package-docker:
+          matrix:
+            parameters:
+              arch: [amd64, arm64]
           requires:
             - checkout
             - versions
@@ -116,8 +115,8 @@ jobs:
 
   # -------------------------------------------------------------------------- #
 
-  package-docker-arm64:
-    executor: arm64-testbed
+  package-docker:
+    executor: << parameters.arch >>-testbed
     working_directory: /home/circleci/project
     steps:
       - restore_cache:
@@ -129,7 +128,7 @@ jobs:
           command: |
             export VERSION=$(cat /home/circleci/project/VERSION)
             export META=$(cat /home/circleci/project/META)
-            export ARCH=arm64
+            export ARCH=<< parameters.arch >>
 
             docker build \
               -t docker.io/openbank/postgres:${ARCH}-${VERSION}.${META} \
@@ -143,61 +142,25 @@ jobs:
           command: |
             export VERSION=$(cat /home/circleci/project/VERSION)
             export META=$(cat /home/circleci/project/META)
-            export ARCH=arm64
+            export ARCH=<< parameters.arch >>
 
-            docker login docker.io -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}
+            echo ${DOCKER_PASSWORD} | docker login docker.io -u ${DOCKER_USER} --password-stdin
 
             docker push \
               docker.io/openbank/postgres:${ARCH}-${VERSION}.${META}
+
+            rm -f /home/circleci/.docker/config.json
       - run:
           name: Publish to docker.pkg.github.com
           command: |
             export VERSION=$(cat /home/circleci/project/VERSION)
-            export ARCH=arm64
+            export ARCH=<< parameters.arch >>
 
-            docker login docker.pkg.github.com -u ${DOCKER_USER} -p ${GITHUB_RELEASE_TOKEN}
-
-            docker push \
-              docker.pkg.github.com/jancajthaml-openbank/postgres/postgres:${ARCH}-${VERSION}
-
-  # -------------------------------------------------------------------------- #
-
-  package-docker-amd64:
-    executor: amd64-testbed
-    working_directory: /home/circleci/project
-    steps:
-      - restore_cache:
-          key: code-{{ .Environment.CIRCLE_TAG }}-{{ .Environment.CIRCLE_PROJECT_REPONAME }}-{{ .Environment.CIRCLE_SHA1 }}
-      - restore_cache:
-          key: versions-{{ .Environment.CIRCLE_TAG }}-{{ .Environment.CIRCLE_PROJECT_REPONAME }}-{{ .Environment.CIRCLE_SHA1 }}
-      - run:
-          name: Package for docker
-          command: |
-            export VERSION=$(cat /home/circleci/project/VERSION)
-            export META=$(cat /home/circleci/project/META)
-            export ARCH=amd64
-
-            docker build -t docker.io/openbank/postgres:${ARCH}-${VERSION}.${META} -f ./packaging/docker/${ARCH}/Dockerfile .
-            docker build -t docker.pkg.github.com/jancajthaml-openbank/postgres/postgres:${ARCH}-${VERSION} -f ./packaging/docker/${ARCH}/Dockerfile .
-      - run:
-          name: Publish to docker.io
-          command: |
-            export VERSION=$(cat /home/circleci/project/VERSION)
-            export META=$(cat /home/circleci/project/META)
-            export ARCH=amd64
-
-            docker login docker.io -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}
-            docker push \
-              docker.io/openbank/postgres:${ARCH}-${VERSION}.${META}
-      - run:
-          name: Publish to docker.pkg.github.com
-          command: |
-            export VERSION=$(cat /home/circleci/project/VERSION)
-            export ARCH=amd64
-
-            docker login docker.pkg.github.com -u ${DOCKER_USER} -p ${GITHUB_RELEASE_TOKEN}
+            echo ${GITHUB_RELEASE_TOKEN} | docker login docker.pkg.github.com -u ${DOCKER_USER} --password-stdin
 
             docker push \
               docker.pkg.github.com/jancajthaml-openbank/postgres/postgres:${ARCH}-${VERSION}
+
+            rm -f /home/circleci/.docker/config.json
 
 # ---------------------------------------------------------------------------- #
