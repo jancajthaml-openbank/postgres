@@ -1,4 +1,4 @@
-FROM library/postgres:13
+FROM --platform=linux/arm64/v8 arm64v8/postgres:14
 
 ENV TERM=xterm
 
