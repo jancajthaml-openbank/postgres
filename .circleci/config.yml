@@ -132,8 +132,8 @@ jobs:
             export META=$(cat /home/circleci/project/META)
             export ARCH=arm64
 
-            docker build -t docker.io/openbank/postgres:${ARCH}-${VERSION}.${META} .
-            docker build -t docker.pkg.github.com/jancajthaml-openbank/postgres/postgres:${ARCH}-${VERSION} .
+            docker build -t docker.io/openbank/postgres:${ARCH}-${VERSION}.${META} -f ./packaging/docker/${ARCH}/Dockerfile .
+            docker build -t docker.pkg.github.com/jancajthaml-openbank/postgres/postgres:${ARCH}-${VERSION} -f ./packaging/docker/${ARCH}/Dockerfile .
       - run:
           name: Publish to docker.io
           command: |
@@ -172,8 +172,8 @@ jobs:
             export META=$(cat /home/circleci/project/META)
             export ARCH=amd64
 
-            docker build -t docker.io/openbank/postgres:${ARCH}-${VERSION}.${META} .
-            docker build -t docker.pkg.github.com/jancajthaml-openbank/postgres/postgres:${ARCH}-${VERSION} .
+            docker build -t docker.io/openbank/postgres:${ARCH}-${VERSION}.${META} -f ./packaging/docker/${ARCH}/Dockerfile .
+            docker build -t docker.pkg.github.com/jancajthaml-openbank/postgres/postgres:${ARCH}-${VERSION} -f ./packaging/docker/${ARCH}/Dockerfile .
       - run:
           name: Publish to docker.io
           command: |
