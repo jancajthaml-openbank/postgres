@@ -37,7 +37,11 @@ workflows:
     jobs:
       - checkout
       - versions
-      - package-docker:
+      - package-docker-amd64:
+          requires:
+            - checkout
+            - versions
+      - package-docker-arm64:
           requires:
             - checkout
             - versions
