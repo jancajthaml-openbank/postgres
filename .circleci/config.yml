@@ -116,6 +116,9 @@ jobs:
   # -------------------------------------------------------------------------- #
 
   package-docker:
+    parameters:
+      arch:
+        type: string
     executor: << parameters.arch >>-testbed
     working_directory: /home/circleci/project
     steps:
