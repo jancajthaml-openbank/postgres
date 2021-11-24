@@ -21,7 +21,7 @@ package:
 .PHONY: bundle-docker-%
 bundle-docker-%: %
 	@docker build \
-		-t openbank/postgres:$(VERSION)-$^.$(META) \
+		-t openbank/postgres:$^-$(VERSION).$(META) \
 		-f packaging/docker/$^/Dockerfile \
 		.
 
