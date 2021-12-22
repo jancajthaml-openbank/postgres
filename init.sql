@@ -15,8 +15,8 @@ GRANT ALL PRIVILEGES ON TABLE tenant TO postgres;
 CREATE TABLE account
 (
   tenant            VARCHAR(50) NOT NULL,
-  name              VARCHAR(50) NOT NULL,
-  format            VARCHAR(50),
+  name              VARCHAR(100) NOT NULL,
+  format            VARCHAR(100),
   currency          CHAR(3),
   last_syn_snapshot INTEGER,
   last_syn_event    INTEGER,
@@ -38,9 +38,9 @@ CREATE TABLE transfer
   transfer      VARCHAR(100) NOT NULL,
   status        SMALLINT NOT NULL,
   credit_tenant VARCHAR(50) NOT NULL,
-  credit_name   VARCHAR(50) NOT NULL,
+  credit_name   VARCHAR(100) NOT NULL,
   debit_tenant  VARCHAR(50) NOT NULL,
-  debit_name    VARCHAR(50) NOT NULL,
+  debit_name    VARCHAR(100) NOT NULL,
   currency      CHAR(3) NOT NULL,
   amount        NUMERIC NOT NULL,
   value_date    TIMESTAMPTZ NOT NULL,
