@@ -103,10 +103,8 @@ jobs:
           key: code-<< pipeline.git.tag >>-{{ .Environment.CIRCLE_PROJECT_REPONAME }}-<< pipeline.git.revision >>
           paths:
             - /home/circleci/project/.git
-            - /home/circleci/project/dev
-            - /home/circleci/project/services
             - /home/circleci/project/packaging
-            - /home/circleci/project/Dockerfile
+            - /home/circleci/project/init.sql
       - save_cache:
           key: versions-<< pipeline.git.tag >>-{{ .Environment.CIRCLE_PROJECT_REPONAME }}-<< pipeline.git.revision >>
           paths:
