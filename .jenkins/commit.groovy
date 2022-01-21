@@ -90,7 +90,7 @@ pipeline {
         stage('Package Docker') {
             steps {
                 script {
-                    DOCKER_IMAGE = docker.build("${env.ARTIFACTORY_DOCKER_REGISTRY}/docker-local/openbank/postgres:amd64-${env.VERSION}", dockerOptions())
+                    DOCKER_IMAGE = docker.build("${env.ARTIFACTORY_DOCKER_REGISTRY}/docker-local/openbank/postgres:amd64-${env.VERSION}.jenkins", dockerOptions())
                 }
             }
         }
