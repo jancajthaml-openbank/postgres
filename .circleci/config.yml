@@ -173,9 +173,9 @@ jobs:
       - restore_cache:
           key: code-<< pipeline.git.tag >>-{{ .Environment.CIRCLE_PROJECT_REPONAME }}-<< pipeline.git.revision >>
       - restore_cache:
-          key: versions-<< pipeline.git.tag >>-{{ .Environment.CIRCLE_PROJECT_REPONAME }}-<< pipeline.git.revision >>
+          key: debian-<< parameters.arch >>-<< pipeline.git.tag >>-{{ .Environment.CIRCLE_PROJECT_REPONAME }}-<< pipeline.git.revision >>
       - restore_cache:
-          key: debian-<< pipeline.git.tag >>-{{ .Environment.CIRCLE_PROJECT_REPONAME }}-<< pipeline.git.revision >>
+          key: versions-<< pipeline.git.tag >>-{{ .Environment.CIRCLE_PROJECT_REPONAME }}-<< pipeline.git.revision >>
       - run:
           name: Package for docker << parameters.arch >>
           command: |
