@@ -133,6 +133,11 @@ pipeline {
                                 "pattern": "${env.WORKSPACE}/init.sql",
                                 "target": "generic-local/openbank/postgres/${env.VERSION}/init.sql",
                                 "recursive": "false"
+                            },
+                            {
+                                "pattern": "${env.WORKSPACE}/packaging/bin/postgres_(*)_(*).deb",
+                                "target": "generic-local/openbank/postgres/{1}/linux/{2}/postgres.deb",
+                                "recursive": "false"
                             }
                         ]
                     }
