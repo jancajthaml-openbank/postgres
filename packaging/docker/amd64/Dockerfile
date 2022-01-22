@@ -28,7 +28,7 @@ USER root
 
 RUN apt-get update
 
-RUN find /opt/artifacts -name postgres_*_arm64.deb | xargs -I{} -tx apt-get install -y -f {}
+RUN find /opt/artifacts -name postgres_*_amd64.deb | xargs -I{} -tx apt-get install -y -f {}
 
 RUN cp /etc/postgres/conf.d/init.sql /docker-entrypoint-initdb.d/init.sql
 
