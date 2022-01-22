@@ -14,12 +14,23 @@ workflows:
               ignore: /.*/
             tags:
               only: /^v[0-9]+(\.[0-9]+)*$/
-      - package-docker:
+      - package-debian:
           matrix:
             parameters:
               arch: [amd64, arm64]
           requires:
             - checkout
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v[0-9]+(\.[0-9]+)*$/
+      - package-docker:
+          matrix:
+            parameters:
+              arch: [amd64, arm64]
+          requires:
+            - package-debian-<< matrix.arch >>
           filters:
             branches:
               ignore: /.*/
@@ -37,12 +48,18 @@ workflows:
   commit:
     jobs:
       - checkout
-      - package-docker:
+      - package-debian:
           matrix:
             parameters:
               arch: [amd64, arm64]
           requires:
             - checkout
+      - package-docker:
+          matrix:
+            parameters:
+              arch: [amd64, arm64]
+          requires:
+            - package-debian-<< matrix.arch >>
       - publish:
           requires:
             - package-docker
@@ -59,6 +76,11 @@ executors:
   docker:
     docker:
       - image: docker.io/amd64/docker
+    resource_class: small
+
+  debian:
+    docker:
+      - image: docker.io/jancajthaml/debian-packager
     resource_class: small
 
   machine-arm64:
@@ -113,6 +135,34 @@ jobs:
 
   # -------------------------------------------------------------------------- #
 
+  package-debian:
+    executor: debian
+    parameters:
+      arch:
+        type: string
+    working_directory: /home/circleci/project
+    steps:
+      - restore_cache:
+          key: code-<< pipeline.git.tag >>-{{ .Environment.CIRCLE_PROJECT_REPONAME }}-<< pipeline.git.revision >>
+      - restore_cache:
+          key: versions-<< pipeline.git.tag >>-{{ .Environment.CIRCLE_PROJECT_REPONAME }}-<< pipeline.git.revision >>
+      - run:
+          name: Package for debian
+          command: |
+            VERSION=$(cat /home/circleci/project/VERSION)
+            /home/circleci/project/dev/lifecycle/debian \
+              --arch << parameters.arch >> \
+              --pkg postgres \
+              --version ${VERSION} \
+              --source /home/circleci/project/packaging
+          no_output_timeout: 5m
+      - save_cache:
+          key: debian-<< parameters.arch >>-<< pipeline.git.tag >>-{{ .Environment.CIRCLE_PROJECT_REPONAME }}-<< pipeline.git.revision >>
+          paths:
+            - /home/circleci/project/packaging/bin
+
+  # -------------------------------------------------------------------------- #
+
   package-docker:
     parameters:
       arch:
@@ -124,6 +174,8 @@ jobs:
           key: code-<< pipeline.git.tag >>-{{ .Environment.CIRCLE_PROJECT_REPONAME }}-<< pipeline.git.revision >>
       - restore_cache:
           key: versions-<< pipeline.git.tag >>-{{ .Environment.CIRCLE_PROJECT_REPONAME }}-<< pipeline.git.revision >>
+      - restore_cache:
+          key: debian-<< pipeline.git.tag >>-{{ .Environment.CIRCLE_PROJECT_REPONAME }}-<< pipeline.git.revision >>
       - run:
           name: Package for docker << parameters.arch >>
           command: |

@@ -1,0 +1,136 @@
+#!/bin/bash
+
+set -eu
+trap exit INT TERM
+
+################################################################################
+
+VERSION=""
+SOURCE=""
+TARGET_ARCHITECTURE=""
+TARGET_PACKAGE=""
+while [ $# -gt 0 ] ; do
+key="$1"
+case $key in
+  --source)   SOURCE="$2";              shift; shift; ;;
+  --arch)     TARGET_ARCHITECTURE="$2"; shift; shift; ;;
+  --pkg)      TARGET_PACKAGE="$2";      shift; shift; ;;
+  --version)  VERSION="$2";             shift; shift; ;;
+  *)                                    shift;        ;;
+esac
+done
+
+################################################################################
+
+if [ -z "${VERSION}" ] ; then
+  (>&2 echo "version not provided")
+  exit 1
+fi
+
+if [ -z "${SOURCE}" ] ; then
+  (>&2 echo "source not provided")
+  exit 1
+fi
+
+if [ -z "${TARGET_PACKAGE}" ] ; then
+  (>&2 echo "[error] target package not provided")
+  exit 1
+fi
+
+if [ -z "${TARGET_ARCHITECTURE}" ] ; then
+  (>&2 echo "target architecture not provided (use e.g. --arch amd64)")
+  exit 1
+fi
+
+################################################################################
+
+lifecycle::debian::generate_changelog() {
+  echo "[info] (${TARGET_PACKAGE}_${TARGET_ARCHITECTURE}) generating changelog"
+
+  target="${SOURCE}/debian/changelog"
+
+  if [ -f ${target} ] ; then
+    rm -f ${target}
+  fi
+
+  touch ${target}
+
+  git tag "v${VERSION#v}" 2> /dev/null || :
+
+  PAIRS=()
+  tag=HEAD
+  prev_tag=HEAD
+  for tag in $(git tag --sort=-v:refname | awk '{arr[i++]=$0} END {while (i>0) print arr[--i] }') ; do
+    PAIRS+=("${prev_tag} ${tag}")
+    prev_tag=${tag}
+  done
+
+  idx=( ${!PAIRS[@]} )
+  for ((i=${#idx[@]} - 1; i >= 0; i--)) ; do
+    tag_from=${PAIRS[idx[i]]%% *}
+    tag_to=${PAIRS[idx[i]]#* }
+    DATE=$(git log -1 --format=%cD ${tag_to})
+    commits=$(echo "$(git log --no-merges --pretty=oneline --pretty=format:%s ^${tag_from} ${tag_to})" | sed '/^[[:space:]]*$/d' | uniq)
+    if [[ -n "${commits// }" ]] ; then
+      echo "${TARGET_PACKAGE} (${tag_to#v}) stable; urgency=medium" >> ${target}
+      echo "" >> ${target}
+      echo "${commits}" | \
+      while read note ; do
+        line="$(tr '[:lower:]' '[:upper:]' <<< ${note:0:1})${note:1}"
+        echo "  * ${line:0:75}" >> ${target}
+      done
+      echo "" >> ${target}
+      echo " -- Jan Cajthaml <jan.cajthaml@gmail.com>  ${DATE}" >> ${target}
+      echo "" >> ${target}
+    fi
+  done
+
+  if [ ! -s ${target} ] ; then
+    DATE=$(git log -1 --format=%cD HEAD)
+    echo "${TARGET_PACKAGE} (${VERSION#v}) unstable; urgency=medium" >> ${target}
+    echo "" >> ${target}
+    echo "  * contains unrelease commits" >> ${target}
+    echo "" >> ${target}
+    echo " -- Jan Cajthaml <jan.cajthaml@gmail.com>  ${DATE}" >> ${target}
+    echo "" >> ${target}
+  fi
+}
+
+lifecycle::clean() {
+  echo "[info] ${SOURCE}/bin cleaned"
+  find "${SOURCE}/bin" -name "${TARGET_PACKAGE}_*_${TARGET_ARCHITECTURE}*" -exec rm -f {} \;
+}
+
+lifecycle::debian::package() {
+  echo "[info] (${TARGET_PACKAGE}_${TARGET_ARCHITECTURE}) running dpkg-buildpackage"
+  
+  local CC=gcc
+  case ${TARGET_ARCHITECTURE} in
+    arm64) CC=aarch64-linux-gnu-gcc   ;;
+    *)     CC=gcc                     ;;
+  esac
+
+  cd ${SOURCE} && \
+  \
+  CC=${CC} \
+    dpkg-buildpackage \
+    --host-arch=${TARGET_ARCHITECTURE} \
+    --buildinfo-option=-ubin \
+    --changes-option=-ubin \
+    -tc \
+    -uc \
+    -b \
+    -rfakeroot
+}
+
+lifecycle::lintian() {
+  echo "[info] (${TARGET_PACKAGE}_${TARGET_ARCHITECTURE}) running lintian"
+  fakeroot find bin -name "${TARGET_PACKAGE}_*_${TARGET_ARCHITECTURE}.deb" -exec lintian --pedantic {} \;
+}
+
+################################################################################
+
+lifecycle::clean
+lifecycle::debian::generate_changelog
+lifecycle::debian::package
+lifecycle::lintian
