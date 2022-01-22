@@ -87,6 +87,27 @@ pipeline {
             }
         }
 
+        stage('Package Debian') {
+            agent {
+                docker {
+                    image 'jancajthaml/debian-packager:latest'
+                    args "--entrypoint=''"
+                    reuseNode true
+                }
+            }
+            steps {
+                script {
+                    sh """
+                        ${env.WORKSPACE}/dev/lifecycle/debian \
+                        --version ${env.VERSION} \
+                        --arch ${env.ARCH} \
+                        --pkg postgres \
+                        --source ${env.WORKSPACE}/packaging
+                    """
+                }
+            }
+        }
+
         stage('Package Docker') {
             steps {
                 script {
