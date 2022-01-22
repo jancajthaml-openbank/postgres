@@ -2,8 +2,8 @@
 set -e
 
 if [ "$1" = configure ] && [ -f /etc/postgres/conf.d/init.sql ] ; then
-  psql -c 'create database openbank;' || :
-  psql -d openbank -f /etc/postgres/conf.d/init.sql || :
+  psql -U postgres -c 'create database openbank;' || :
+  psql -U postgres -d openbank -f /etc/postgres/conf.d/init.sql || :
 fi
 
 #DEBHELPER#
