@@ -75,6 +75,10 @@ pipeline {
                         script: 'git name-rev --name-only HEAD',
                         returnStdout: true
                     ).trim() - 'remotes/origin/'
+                     env.ARCH = sh(
+                        script: 'dpkg --print-architecture',
+                        returnStdout: true
+                    ).trim()
 
                     env.VERSION = getVersion()
                     env.LICENSE = "Apache-2.0"
