@@ -1,0 +1,14 @@
+Source: postgres
+Maintainer: Jan Cajthaml <jan.cajthaml@gmail.com>
+Section: misc
+Priority: optional
+Build-Depends: debhelper (>= 10)
+Standards-Version: 4.1.4
+
+Package: postgres
+Architecture: any
+Description: secondary database for openbank
+ Secondary database postgres schema for openbank
+Depends: postgresql, ${shlibs:Depends}
+
+

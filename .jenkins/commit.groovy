@@ -75,6 +75,10 @@ pipeline {
                         script: 'git name-rev --name-only HEAD',
                         returnStdout: true
                     ).trim() - 'remotes/origin/'
+                     env.ARCH = sh(
+                        script: 'dpkg --print-architecture',
+                        returnStdout: true
+                    ).trim()
 
                     env.VERSION = getVersion()
                     env.LICENSE = "Apache-2.0"
@@ -83,6 +87,27 @@ pipeline {
                     env.PROJECT_AUTHOR = "${env.CHANGE_AUTHOR_DISPLAY_NAME} <${env.CHANGE_AUTHOR_EMAIL}>"
 
                     currentBuild.displayName = "#${currentBuild.number} - ${env.GIT_BRANCH} (${env.VERSION})"
+                }
+            }
+        }
+
+        stage('Package Debian') {
+            agent {
+                docker {
+                    image 'jancajthaml/debian-packager:latest'
+                    args "--entrypoint=''"
+                    reuseNode true
+                }
+            }
+            steps {
+                script {
+                    sh """
+                        ${env.WORKSPACE}/dev/lifecycle/debian \
+                        --version ${env.VERSION} \
+                        --arch ${env.ARCH} \
+                        --pkg postgres \
+                        --source ${env.WORKSPACE}/packaging
+                    """
                 }
             }
         }
